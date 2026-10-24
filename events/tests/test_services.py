@@ -3,7 +3,7 @@ from datetime import timedelta
 from decimal import Decimal
 from threading import Barrier
 
-from django.db import close_old_connections, connection
+from django.db import close_old_connections, connection, connections
 from django.test import TestCase, TransactionTestCase, skipUnlessDBFeature
 from django.utils import timezone
 
@@ -215,7 +215,7 @@ class ConcurrentRegistrationTests(TransactionTestCase):
             except RegistrationError:
                 return False
             finally:
-                close_old_connections()
+                connections.close_all()
 
         with ThreadPoolExecutor(max_workers=len(users)) as executor:
             results = list(executor.map(attempt, users))
