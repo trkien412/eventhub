@@ -318,8 +318,8 @@ DJANGO_CSRF_TRUSTED_ORIGINS=https://eventhub.example.com
 | Healthcheck | http://localhost:8080/healthz | Kiểm tra DB, dùng cho Docker/Nginx |
 | Metrics | `http://web:8000/metrics` | Chỉ trong Docker network; Nginx chặn ra ngoài |
 | pgAdmin | http://127.0.0.1:5050 | Chỉ máy chủ; cần master password |
-| Prometheus | http://127.0.0.1:9090 | Chỉ máy chủ |
-| Grafana | http://127.0.0.1:3000 | Chỉ máy chủ |
+| Prometheus | http://localhost:9090 | Chỉ máy chủ |
+| Grafana | http://localhost:3000 | Chỉ máy chủ |
 | Loki | http://127.0.0.1:3100 | Chỉ máy chủ/API |
 
 Nếu server ở xa, dùng SSH tunnel, ví dụ:
