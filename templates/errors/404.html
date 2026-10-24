@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Không tìm thấy trang{% endblock %}
+{% block content %}
+<section class="container error-page">
+  <div class="error-code">404</div>
+  <h1>Trang bạn tìm không tồn tại</h1>
+  <p class="muted">Đường dẫn có thể đã thay đổi hoặc sự kiện không còn được công khai.</p>
+  <div class="hero-actions">
+    <a class="btn btn-primary" href="{% url 'events:home' %}">Khám phá sự kiện</a>
+  </div>
+</section>
+{% endblock %}

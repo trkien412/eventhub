@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% load eventhub %}
+
+{% block title %}Quản lý đăng ký{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="dashboard-shell">
+    {% include "dashboard/_nav.html" %}
+
+    <div class="dashboard-main">
+      <div class="dash-head">
+        <div>
+          <span class="eyebrow">Quản trị</span>
+          <h1>Quản lý đăng ký</h1>
+          <p>Theo dõi người đăng ký, số vé và trạng thái từng đơn.</p>
+        </div>
+        <span class="badge badge-primary">{{ page_obj.paginator.count|default:0 }} đăng ký</span>
+      </div>
+
+      <form method="get" class="filter-form mb-2" role="search">
+        <div class="form-group">
+          <label for="q">Tìm kiếm</label>
+          <input type="search" id="q" name="q" value="{{ q }}" class="form-control" placeholder="Người dùng, email, sự kiện">
+        </div>
+        <div class="form-group">
+          <label for="status">Trạng thái</label>
+          <select id="status" name="status" class="form-control">
+            <option value="">Tất cả</option>
+            {% for value, label in status_choices %}
+              <option value="{{ value }}"{% if selected_status == value %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="event">Sự kiện</label>
+          <select id="event" name="event" class="form-control">
+            <option value="">Tất cả sự kiện</option>
+            {% for event in events %}
+              <option value="{{ event.pk }}"{% if selected_event == event.pk|stringformat:"s" %} selected{% endif %}>{{ event.name|truncatechars:46 }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn btn-secondary">Lọc</button>
+        <a href="{% url 'dashboard:registration_list' %}" class="btn btn-ghost">Đặt lại</a>
+      </form>
+
+      {% if registrations %}
+        <div class="table-card">
+          <div class="table-scroll">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Người đăng ký</th>
+                  <th>Sự kiện</th>
+                  <th>Số vé</th>
+                  <th>Tổng tiền</th>
+                  <th>Trạng thái</th>
+                  <th>Thời điểm</th>
+                  <th class="text-right">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for registration in registrations %}
+                  <tr>
+                    <td>
+                      <span class="cell-main">{{ registration.user.display_name }}</span>
+                      <span class="cell-sub">@{{ registration.user.username }}</span>
+                    </td>
+                    <td>
+                      <a class="cell-main" href="{{ registration.event.get_absolute_url }}">{{ registration.event.name|truncatechars:44 }}</a>
+                      <span class="cell-sub">{{ registration.event.start_time|date:"d/m/Y H:i" }}</span>
+                    </td>
+                    <td>{{ registration.quantity }} <span class="cell-sub">{{ registration.ticket_count }} mã vé</span></td>
+                    <td>{{ registration.total_price|vnd }} đ</td>
+                    <td>
+                      {% if registration.status == 'confirmed' %}
+                        <span class="badge badge-success">Đã xác nhận</span>
+                      {% else %}
+                        <span class="badge badge-neutral">Đã hủy</span>
+                      {% endif %}
+                    </td>
+                    <td>{{ registration.created_at|date:"d/m/Y H:i" }}</td>
+                    <td>
+                      <div class="cell-actions">
+                        {% if registration.is_cancellable %}
+                          <form method="post" action="{% url 'dashboard:registration_cancel' registration.pk %}" data-confirm="Hủy đăng ký của {{ registration.user.username }} và toàn bộ vé liên quan?">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-secondary btn-sm">Hủy đăng ký</button>
+                          </form>
+                        {% else %}
+                          <span class="muted small">Không thể hủy</span>
+                        {% endif %}
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="table-foot">
+            <span>Trang {{ page_obj.number }} / {{ page_obj.paginator.num_pages }} · {{ page_obj.paginator.count }} đăng ký</span>
+          </div>
+        </div>
+        {% include "partials/pagination.html" %}
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-icon" aria-hidden="true">ĐK</div>
+          <h2>Chưa có đăng ký phù hợp</h2>
+          <p>Đăng ký sẽ xuất hiện tại đây sau khi người dùng đặt vé.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

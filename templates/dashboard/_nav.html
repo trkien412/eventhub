@@ -1,0 +1,22 @@
+<aside class="dashboard-sidebar" aria-label="Điều hướng quản trị">
+  <p class="sidebar-label">Quản trị hệ thống</p>
+  <nav class="dash-nav">
+    <a href="{% url 'dashboard:index' %}" class="dash-link{% if active_nav == 'dashboard' %} is-active{% endif %}">
+      <span class="dash-icon" aria-hidden="true">DB</span> Tổng quan
+    </a>
+    <a href="{% url 'dashboard:event_list' %}" class="dash-link{% if active_nav == 'events_admin' %} is-active{% endif %}">
+      <span class="dash-icon" aria-hidden="true">SK</span> Sự kiện
+    </a>
+    <a href="{% url 'dashboard:registration_list' %}" class="dash-link{% if active_nav == 'registrations' %} is-active{% endif %}">
+      <span class="dash-icon" aria-hidden="true">ĐK</span> Đăng ký
+    </a>
+    <a href="{% url 'dashboard:ticket_list' %}" class="dash-link{% if active_nav == 'tickets_admin' %} is-active{% endif %}">
+      <span class="dash-icon" aria-hidden="true">VÉ</span> Vé
+    </a>
+    <a href="{% url 'dashboard:user_list' %}" class="dash-link{% if active_nav == 'users' %} is-active{% endif %}">
+      <span class="dash-icon" aria-hidden="true">ND</span> Người dùng
+    </a>
+  </nav>
+  <div class="sidebar-divider"></div>
+  <a href="{% url 'events:home' %}" class="sidebar-back">&larr; Về website</a>
+</aside>

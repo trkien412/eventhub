@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Quản lý người dùng{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="dashboard-shell">
+    {% include "dashboard/_nav.html" %}
+
+    <div class="dashboard-main">
+      <div class="dash-head">
+        <div>
+          <span class="eyebrow">Quản trị</span>
+          <h1>Quản lý người dùng</h1>
+          <p>Khóa tài khoản khi cần thiết. Không xóa người dùng đã có vé để bảo toàn dữ liệu.</p>
+        </div>
+        <span class="badge badge-primary">{{ page_obj.paginator.count|default:0 }} tài khoản</span>
+      </div>
+
+      <form method="get" class="filter-form mb-2" role="search">
+        <div class="form-group">
+          <label for="q">Tìm kiếm</label>
+          <input type="search" id="q" name="q" value="{{ q }}" class="form-control" placeholder="Tên, email, số điện thoại">
+        </div>
+        <button type="submit" class="btn btn-secondary">Lọc</button>
+        <a href="{% url 'dashboard:user_list' %}" class="btn btn-ghost">Đặt lại</a>
+      </form>
+
+      {% if users %}
+        <div class="table-card">
+          <div class="table-scroll">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Người dùng</th>
+                  <th>Vai trò</th>
+                  <th>Đăng ký</th>
+                  <th>Trạng thái</th>
+                  <th>Ngày tham gia</th>
+                  <th class="text-right">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in users %}
+                  <tr>
+                    <td>
+                      <span class="cell-main">{{ item.display_name }}</span>
+                      <span class="cell-sub">@{{ item.username }}{% if item.email %} · {{ item.email }}{% endif %}</span>
+                    </td>
+                    <td>
+                      {% if item.is_superuser %}
+                        <span class="badge badge-danger">Superuser</span>
+                      {% elif item.is_staff %}
+                        <span class="badge badge-warning">Quản trị</span>
+                      {% else %}
+                        <span class="badge badge-neutral">Người dùng</span>
+                      {% endif %}
+                    </td>
+                    <td>{{ item.reg_count|intcomma }}</td>
+                    <td>
+                      {% if item.is_active %}
+                        <span class="badge badge-success">Hoạt động</span>
+                      {% else %}
+                        <span class="badge badge-neutral">Đã khóa</span>
+                      {% endif %}
+                    </td>
+                    <td>{{ item.date_joined|date:"d/m/Y" }}</td>
+                    <td>
+                      <div class="cell-actions">
+                        {% if item.pk == user.pk %}
+                          <span class="badge badge-info">Tài khoản của bạn</span>
+                        {% else %}
+                          <form method="post" action="{% url 'dashboard:user_toggle' item.pk %}" data-confirm="{% if item.is_active %}Khóa{% else %}Mở khóa{% endif %} tài khoản {{ item.username }}?">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-secondary btn-sm">
+                              {% if item.is_active %}Khóa{% else %}Mở khóa{% endif %}
+                            </button>
+                          </form>
+                        {% endif %}
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="table-foot">
+            <span>Trang {{ page_obj.number }} / {{ page_obj.paginator.num_pages }} · {{ page_obj.paginator.count }} tài khoản</span>
+          </div>
+        </div>
+        {% include "partials/pagination.html" %}
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-icon" aria-hidden="true">ND</div>
+          <h2>Không có người dùng phù hợp</h2>
+          <p>Thử từ khóa tìm kiếm khác.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

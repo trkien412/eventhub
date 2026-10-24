@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Khám phá sự kiện{% endblock %}
+{% block meta_description %}Tìm kiếm sự kiện theo tên, loại và ngày tổ chức. Đăng ký tham dự và nhận mã vé điện tử ngay trên EventHub.{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <div class="container">
+    <div class="hero-grid">
+      <div>
+        <span class="eyebrow">Nền tảng sự kiện dành cho sinh viên</span>
+        <h1>Kết nối, học hỏi<br>và <em>trải nghiệm.</em></h1>
+        <p class="hero-lead">
+          Khám phá hội thảo, workshop, đêm nhạc và hoạt động cộng đồng.
+          Đăng ký trong vài bước, nhận mã vé riêng và theo dõi mọi thứ tại một nơi.
+        </p>
+        <div class="hero-actions">
+          <a href="#events" class="btn btn-primary btn-lg">Khám phá sự kiện</a>
+          {% if not user.is_authenticated %}
+            <a href="{% url 'accounts:register' %}" class="btn btn-secondary btn-lg">Tạo tài khoản</a>
+          {% else %}
+            <a href="{% url 'events:my_registrations' %}" class="btn btn-secondary btn-lg">Xem vé của tôi</a>
+          {% endif %}
+        </div>
+        <ul class="hero-stats">
+          <li><strong>{{ public_stats.upcoming }}</strong><span>sự kiện sắp tới</span></li>
+          <li><strong>{{ public_stats.open }}</strong><span>đang mở đăng ký</span></li>
+          <li><strong>{{ public_stats.remaining|intcomma }}</strong><span>vé còn lại</span></li>
+        </ul>
+      </div>
+
+      <aside class="hero-ticket" aria-label="Sự kiện nổi bật">
+        {% if featured_event %}
+          <span class="hero-ticket-label">Sự kiện nổi bật</span>
+          <h2>{{ featured_event.name }}</h2>
+          <div class="hero-ticket-meta">
+            <span>{{ featured_event.start_time|date:"H:i · d/m/Y" }}</span>
+            <span>{{ featured_event.location }}</span>
+            <span>Còn {{ featured_event.remaining_tickets }} / {{ featured_event.capacity }} vé</span>
+          </div>
+          <div class="hero-ticket-footer">
+            <span class="badge badge-success">{{ featured_event.registration_state_label }}</span>
+            <a class="link-arrow" href="{{ featured_event.get_absolute_url }}">Xem chi tiết &rarr;</a>
+          </div>
+        {% else %}
+          <div class="hero-ticket-empty">
+            <span class="hero-ticket-label">Sắp ra mắt</span>
+            <h2>Sự kiện tiếp theo đang được chuẩn bị</h2>
+            <p>Quay lại sau để không bỏ lỡ những trải nghiệm mới nhất.</p>
+          </div>
+        {% endif %}
+      </aside>
+    </div>
+
+    <form method="get" class="filter-card" role="search" aria-label="Bộ lọc sự kiện">
+      <div class="form-group filter-query">
+        <label for="{{ filter_form.q.id_for_label }}">Tìm kiếm</label>
+        {{ filter_form.q }}
+      </div>
+      <div class="form-group">
+        <label for="{{ filter_form.category.id_for_label }}">Loại sự kiện</label>
+        {{ filter_form.category }}
+      </div>
+      <div class="form-group">
+        <label for="{{ filter_form.date.id_for_label }}">Ngày tổ chức</label>
+        {{ filter_form.date }}
+      </div>
+      <div class="form-group">
+        <label for="{{ filter_form.time.id_for_label }}">Thời gian</label>
+        {{ filter_form.time }}
+      </div>
+      <div class="filter-actions">
+        <button type="submit" class="btn btn-primary">Tìm kiếm</button>
+        <a href="{% url 'events:home' %}" class="btn btn-ghost">Đặt lại</a>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="container section" id="events">
+  <div class="section-head">
+    <div>
+      <span class="eyebrow">Danh sách sự kiện</span>
+      <h2>
+        {% if filter_form.time.value == 'past' %}
+          Sự kiện đã diễn ra
+        {% elif filter_form.q.value or filter_form.category.value or filter_form.date.value %}
+          Kết quả phù hợp
+        {% else %}
+          Sự kiện sắp diễn ra
+        {% endif %}
+      </h2>
+      <p>Chọn một sự kiện để xem lịch trình, địa điểm và đăng ký vé.</p>
+    </div>
+    <span class="result-count">{{ page_obj.paginator.count }} sự kiện</span>
+  </div>
+
+  {% if events %}
+    <div class="event-grid">
+      {% for event in events %}
+        <article class="event-card">
+          <div class="event-card-top">
+            <span class="category-tag">{{ event.get_category_display }}</span>
+            {% include "partials/event_status.html" with state=event.registration_state label=event.registration_state_label %}
+          </div>
+
+          <div class="event-date-row">
+            <div class="date-chip" aria-hidden="true">
+              <strong>{{ event.start_time|date:"d" }}</strong>
+              <span>Th{{ event.start_time|date:"m" }}</span>
+            </div>
+            <div>
+              <div class="event-time">{{ event.start_time|date:"l, d/m/Y" }}</div>
+              <div class="event-time">{{ event.start_time|date:"H:i" }} – {{ event.end_time|date:"H:i" }}</div>
+            </div>
+          </div>
+
+          <h3><a href="{{ event.get_absolute_url }}">{{ event.name }}</a></h3>
+          <p class="event-desc">{{ event.description|truncatewords:24 }}</p>
+
+          <div class="event-meta">
+            <span><span class="meta-dot" aria-hidden="true"></span>{{ event.location }}</span>
+          </div>
+
+          <div class="event-capacity">
+            <div class="capacity-row">
+              <span>Còn {{ event.remaining_tickets }} / {{ event.capacity }} vé</span>
+              <strong>{{ event.occupancy_percent }}%</strong>
+            </div>
+            <progress class="progress" max="{{ event.capacity }}" value="{{ event.tickets_sold }}">
+              Đã đăng ký {{ event.tickets_sold }} trên {{ event.capacity }} vé
+            </progress>
+          </div>
+
+          <div class="event-card-footer">
+            <span class="price{% if event.price == 0 %} is-free{% endif %}">{{ event.display_price }}</span>
+            <a href="{{ event.get_absolute_url }}" class="link-arrow">Chi tiết &rarr;</a>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+
+    {% include "partials/pagination.html" %}
+  {% else %}
+    <div class="empty-state">
+      <div class="empty-icon" aria-hidden="true">?</div>
+      <h2>Không tìm thấy sự kiện phù hợp</h2>
+      <p>Hãy thử từ khóa khác, chọn loại sự kiện khác hoặc xem tất cả thời gian.</p>
+      <a href="{% url 'events:home' %}" class="btn btn-secondary">Xóa bộ lọc</a>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

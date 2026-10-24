@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Xóa sự kiện{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="danger-card">
+    <span class="eyebrow">Xác nhận xóa</span>
+    <h1>Xóa “{{ object.name }}”?</h1>
+    <p class="muted">
+      Hành động này không thể hoàn tác. Sự kiện chỉ có thể xóa khi chưa có
+      đăng ký hoặc vé nào. Nếu đã có dữ liệu, hãy đổi trạng thái sang “Đã hủy”
+      để bảo toàn lịch sử.
+    </p>
+    <div class="notice">
+      <strong>Thời gian:</strong> {{ object.start_time|date:"H:i d/m/Y" }}<br>
+      <strong>Sức chứa:</strong> {{ object.capacity }} vé · Đã phát hành {{ object.tickets_sold }} vé<br>
+      <strong>Đăng ký hiện có:</strong> {{ object.registrations.count }}
+    </div>
+    <form method="post" class="form-actions">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger btn-lg">Xóa vĩnh viễn</button>
+      <a href="{% url 'dashboard:event_list' %}" class="btn btn-secondary btn-lg">Hủy bỏ</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

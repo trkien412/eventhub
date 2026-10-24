@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Đăng nhập{% endblock %}
+
+{% block content %}
+<section class="container auth-section">
+  <div class="auth-card">
+    <aside class="auth-aside">
+      <span class="eyebrow">Chào mừng trở lại</span>
+      <h2>Một tài khoản cho mọi sự kiện.</h2>
+      <p>Đăng nhập để đăng ký tham dự, nhận mã vé riêng và quản lý lịch trình của bạn.</p>
+      <ul class="auth-features">
+        <li>Đăng ký nhanh, nhận vé điện tử ngay lập tức.</li>
+        <li>Theo dõi trạng thái vé và thông tin sự kiện.</li>
+        <li>Hủy đăng ký trước khi sự kiện bắt đầu.</li>
+      </ul>
+    </aside>
+
+    <div class="auth-form">
+      <h1>Đăng nhập</h1>
+      <p class="auth-lead">Nhập tên đăng nhập và mật khẩu của bạn để tiếp tục.</p>
+
+      {% if form.non_field_errors %}
+        <div class="form-alert">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      <form method="post" action="{% url 'accounts:login' %}" novalidate>
+        {% csrf_token %}
+        {% for field in form %}
+          <div class="form-group{% if field.errors %} has-error{% endif %}">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {{ field.errors }}
+          </div>
+        {% endfor %}
+        {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+        <button type="submit" class="btn btn-primary btn-block btn-lg">Đăng nhập</button>
+      </form>
+
+      <p class="auth-switch">
+        Chưa có tài khoản? <a href="{% url 'accounts:register' %}">Đăng ký ngay</a>
+      </p>
+    </div>
+  </div>
+</section>
+{% endblock %}

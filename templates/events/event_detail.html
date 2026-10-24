@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% load eventhub %}
+{% load l10n %}
+
+{% block title %}{{ event.name }}{% endblock %}
+{% block meta_description %}Thông tin chi tiết và đăng ký tham dự {{ event.name }} tại {{ event.location }}.{% endblock %}
+
+{% block content %}
+<section class="container">
+  <div class="detail-banner">
+    <div class="detail-banner-inner">
+      <nav class="breadcrumb" aria-label="Đường dẫn">
+        <a href="{% url 'events:home' %}">Sự kiện</a>
+        <span aria-hidden="true">/</span>
+        <span>{{ event.get_category_display }}</span>
+      </nav>
+      <span class="badge badge-primary">{{ event.get_category_display }}</span>
+      <h1>{{ event.name }}</h1>
+      <div class="detail-meta">
+        <span class="meta-chip">{{ event.start_time|date:"H:i, d/m/Y" }}</span>
+        <span class="meta-chip">{{ event.location }}</span>
+        <span class="meta-chip">
+          {% include "partials/event_status.html" with state=event.registration_state label=event.registration_state_label %}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="detail-layout">
+    <div>
+      <section class="content-card">
+        <h2>Thông tin sự kiện</h2>
+        <div class="info-grid">
+          <div class="info-item">
+            <span>Bắt đầu</span>
+            <strong>{{ event.start_time|date:"H:i · d/m/Y" }}</strong>
+          </div>
+          <div class="info-item">
+            <span>Kết thúc</span>
+            <strong>{{ event.end_time|date:"H:i · d/m/Y" }}</strong>
+          </div>
+          <div class="info-item">
+            <span>Địa điểm</span>
+            <strong>{{ event.location }}</strong>
+          </div>
+          <div class="info-item">
+            <span>Giá vé</span>
+            <strong>{{ event.display_price }}</strong>
+          </div>
+          <div class="info-item">
+            <span>Mở đăng ký</span>
+            <strong>{{ event.registration_start|date:"H:i · d/m/Y" }}</strong>
+          </div>
+          <div class="info-item">
+            <span>Đóng đăng ký</span>
+            <strong>{{ event.registration_end|date:"H:i · d/m/Y" }}</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="content-card">
+        <h2>Giới thiệu</h2>
+        <div class="prose">
+          {{ event.description|linebreaks }}
+        </div>
+      </section>
+
+      <section class="content-card">
+        <h2>Sức chứa &amp; vé</h2>
+        <div class="capacity-row">
+          <span>Đã đăng ký: <strong>{{ event.tickets_sold }}</strong> vé</span>
+          <span>Còn lại: <strong>{{ event.remaining_tickets }}</strong> / {{ event.capacity }}</span>
+        </div>
+        <progress class="progress progress-lg" max="{{ event.capacity }}" value="{{ event.tickets_sold }}">
+          Đã đăng ký {{ event.tickets_sold }} trên {{ event.capacity }} vé
+        </progress>
+        <p class="form-help mt-2">
+          Số vé được cập nhật trực tiếp sau mỗi lượt đăng ký hoặc hủy đăng ký.
+        </p>
+      </section>
+    </div>
+
+    <aside class="ticket-panel" aria-label="Đăng ký tham dự">
+      <h2>Đăng ký tham dự</h2>
+      <div class="ticket-price-row">
+        <div>
+          <div class="ticket-price{% if event.price == 0 %} is-free{% endif %}">
+            {{ event.display_price }}
+          </div>
+          {% if event.price > 0 %}<small>mỗi vé</small>{% endif %}
+        </div>
+        <span class="badge{% if event.can_register %} badge-success{% else %} badge-neutral{% endif %}">
+          {{ event.registration_state_label }}
+        </span>
+      </div>
+
+      <div class="capacity-summary">
+        <span>Còn {{ event.remaining_tickets }} vé</span>
+        <span>{{ event.occupancy_percent }}% đã đăng ký</span>
+      </div>
+      <progress class="progress" max="{{ event.capacity }}" value="{{ event.tickets_sold }}">
+        Đã đăng ký {{ event.tickets_sold }} trên {{ event.capacity }} vé
+      </progress>
+
+      {% if existing_registration %}
+        {% if existing_registration.status == 'confirmed' %}
+          <div class="registered-box">
+            <h3>Bạn đã đăng ký sự kiện này</h3>
+            <p>{{ existing_registration.quantity }} vé · {{ existing_registration.total_price|vnd }} đ</p>
+            <a href="{% url 'events:my_registrations' %}" class="btn btn-primary btn-sm">Xem mã vé</a>
+          </div>
+        {% else %}
+          <div class="registration-closed">
+            <span class="badge badge-neutral">Đăng ký đã hủy</span>
+            <p>Bạn đã hủy đăng ký trước đó. Mỗi tài khoản chỉ được đăng ký một lần cho sự kiện này.</p>
+          </div>
+        {% endif %}
+      {% elif not user.is_authenticated %}
+        <div class="registration-closed">
+          <p>Đăng nhập để đăng ký và nhận mã vé điện tử của bạn.</p>
+          <div class="stack-sm mt-2">
+            <a href="{% url 'accounts:login' %}?next={{ request.path|urlencode }}" class="btn btn-primary btn-block">Đăng nhập để đăng ký</a>
+            <a href="{% url 'accounts:register' %}" class="btn btn-secondary btn-block">Tạo tài khoản mới</a>
+          </div>
+        </div>
+      {% elif event.can_register %}
+        <form method="post" action="{% url 'events:register' event.slug %}" class="ticket-form">
+          {% csrf_token %}
+          <div class="form-group">
+            <label for="{{ registration_form.quantity.id_for_label }}">Số lượng vé</label>
+            {{ registration_form.quantity }}
+            {% if registration_form.quantity.help_text %}
+              <p class="form-help">{{ registration_form.quantity.help_text }}</p>
+            {% endif %}
+          </div>
+          <button type="submit" class="btn btn-primary btn-block btn-lg">
+            {% if event.price == 0 %}Nhận vé miễn phí{% else %}Đăng ký và nhận vé{% endif %}
+          </button>
+        </form>
+      {% else %}
+        <div class="registration-closed">
+          <span class="badge badge-neutral">{{ event.registration_state_label }}</span>
+          <p>{{ event.registration_state_message }}</p>
+        </div>
+      {% endif %}
+
+      <div class="notice">
+        <strong>Lưu ý:</strong> mỗi tài khoản chỉ đăng ký một lần. Bạn có thể hủy
+        đăng ký trước khi sự kiện bắt đầu để nhường vé cho người khác.
+      </div>
+    </aside>
+  </div>
+</section>
+{% endblock %}

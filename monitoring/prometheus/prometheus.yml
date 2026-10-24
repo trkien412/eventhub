@@ -1,0 +1,37 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: eventhub
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # django-prometheus xuất metrics tại /metrics. Nginx chặn đường dẫn này
+  # ra Internet; Prometheus scrape trực tiếp container web qua Docker network.
+  - job_name: django
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["web:8000"]
+        labels:
+          service: django
+
+  - job_name: node
+    static_configs:
+      - targets: ["node-exporter:9100"]
+        labels:
+          service: host
+
+  - job_name: cadvisor
+    static_configs:
+      - targets: ["cadvisor:8080"]
+        labels:
+          service: containers
+
+  - job_name: postgres
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
+        labels:
+          service: database

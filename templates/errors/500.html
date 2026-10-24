@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Lỗi máy chủ{% endblock %}
+{% block content %}
+<section class="container error-page">
+  <div class="error-code">500</div>
+  <h1>Có lỗi xảy ra</h1>
+  <p class="muted">Hệ thống chưa thể xử lý yêu cầu này. Vui lòng thử lại sau hoặc liên hệ quản trị viên.</p>
+  <div class="hero-actions">
+    <a class="btn btn-primary" href="{% url 'events:home' %}">Về trang chủ</a>
+  </div>
+</section>
+{% endblock %}

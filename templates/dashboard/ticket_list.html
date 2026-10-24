@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}Quản lý vé{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="dashboard-shell">
+    {% include "dashboard/_nav.html" %}
+
+    <div class="dashboard-main">
+      <div class="dash-head">
+        <div>
+          <span class="eyebrow">Quản trị</span>
+          <h1>Quản lý vé</h1>
+          <p>Tra cứu mã vé, trạng thái và thực hiện check-in tại sự kiện.</p>
+        </div>
+        <span class="badge badge-primary">{{ page_obj.paginator.count|default:0 }} vé</span>
+      </div>
+
+      <form method="get" class="filter-form mb-2" role="search">
+        <div class="form-group">
+          <label for="q">Tìm kiếm</label>
+          <input type="search" id="q" name="q" value="{{ q }}" class="form-control" placeholder="Mã vé, người dùng, sự kiện">
+        </div>
+        <div class="form-group">
+          <label for="status">Trạng thái</label>
+          <select id="status" name="status" class="form-control">
+            <option value="">Tất cả</option>
+            {% for value, label in status_choices %}
+              <option value="{{ value }}"{% if selected_status == value %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="event">Sự kiện</label>
+          <select id="event" name="event" class="form-control">
+            <option value="">Tất cả sự kiện</option>
+            {% for event in events %}
+              <option value="{{ event.pk }}"{% if selected_event == event.pk|stringformat:"s" %} selected{% endif %}>{{ event.name|truncatechars:46 }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn btn-secondary">Lọc</button>
+        <a href="{% url 'dashboard:ticket_list' %}" class="btn btn-ghost">Đặt lại</a>
+      </form>
+
+      {% if tickets %}
+        <div class="table-card">
+          <div class="table-scroll">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Mã vé</th>
+                  <th>Người sở hữu</th>
+                  <th>Sự kiện</th>
+                  <th>Trạng thái</th>
+                  <th>Phát hành</th>
+                  <th>Check-in</th>
+                  <th class="text-right">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for ticket in tickets %}
+                  <tr>
+                    <td><span class="mono small">{{ ticket.code_display }}</span></td>
+                    <td>
+                      <span class="cell-main">{{ ticket.user.display_name }}</span>
+                      <span class="cell-sub">@{{ ticket.user.username }}</span>
+                    </td>
+                    <td>
+                      <a class="cell-main" href="{{ ticket.event.get_absolute_url }}">{{ ticket.event.name|truncatechars:40 }}</a>
+                      <span class="cell-sub">{{ ticket.event.start_time|date:"d/m/Y H:i" }}</span>
+                    </td>
+                    <td>
+                      {% if ticket.status == 'valid' %}
+                        <span class="badge badge-success">Hợp lệ</span>
+                      {% elif ticket.status == 'used' %}
+                        <span class="badge badge-info">Đã sử dụng</span>
+                      {% else %}
+                        <span class="badge badge-neutral">Đã hủy</span>
+                      {% endif %}
+                    </td>
+                    <td>{{ ticket.issued_at|date:"d/m/Y H:i" }}</td>
+                    <td>
+                      {% if ticket.checked_in_at %}
+                        {{ ticket.checked_in_at|date:"d/m/Y H:i" }}
+                      {% else %}
+                        <span class="muted">—</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      <div class="cell-actions">
+                        {% if ticket.status == 'valid' %}
+                          <form method="post" action="{% url 'dashboard:ticket_check_in' ticket.pk %}" data-confirm="Xác nhận check-in vé {{ ticket.code_short }}?">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-secondary btn-sm">Check-in</button>
+                          </form>
+                        {% else %}
+                          <span class="muted small">Không khả dụng</span>
+                        {% endif %}
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="table-foot">
+            <span>Trang {{ page_obj.number }} / {{ page_obj.paginator.num_pages }} · {{ page_obj.paginator.count }} vé</span>
+          </div>
+        </div>
+        {% include "partials/pagination.html" %}
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-icon" aria-hidden="true">VÉ</div>
+          <h2>Chưa có vé phù hợp</h2>
+          <p>Vé được tạo tự động khi người dùng đăng ký thành công.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

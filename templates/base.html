@@ -1,0 +1,92 @@
+{% load static %}<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ page_title|default:"Hệ thống quản lý sự kiện" }}{% endblock %} · EventHub</title>
+  <meta name="description" content="{% block meta_description %}EventHub - nền tảng tìm kiếm, đăng ký sự kiện và quản lý vé dành cho sinh viên.{% endblock %}">
+  <meta name="color-scheme" content="light">
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+  <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Bỏ qua điều hướng</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="{% url 'events:home' %}" aria-label="EventHub - Trang chủ">
+        <span class="brand-mark" aria-hidden="true">E</span>
+        <span class="brand-name">Event<span>Hub</span></span>
+      </a>
+
+      <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-hidden="true">
+      <label for="nav-toggle" class="nav-toggle-label">
+        <span class="sr-only">Mở menu điều hướng</span>
+        <span aria-hidden="true"></span>
+        <span aria-hidden="true"></span>
+        <span aria-hidden="true"></span>
+      </label>
+
+      <nav class="main-nav" aria-label="Điều hướng chính">
+        <a href="{% url 'events:home' %}" class="nav-link{% if active_nav == 'events' %} is-active{% endif %}">Sự kiện</a>
+        {% if user.is_authenticated %}
+          <a href="{% url 'events:my_registrations' %}" class="nav-link{% if active_nav == 'tickets' %} is-active{% endif %}">Vé của tôi</a>
+          {% if user.is_staff %}
+            <a href="{% url 'dashboard:index' %}" class="nav-link{% if active_nav == 'dashboard' or active_nav == 'events_admin' or active_nav == 'users' or active_nav == 'registrations' or active_nav == 'tickets_admin' %} is-active{% endif %}">Quản trị</a>
+          {% endif %}
+          <span class="nav-user" title="Tài khoản đang đăng nhập">
+            <span class="avatar" aria-hidden="true">{{ user.username|first|upper }}</span>
+            <span class="nav-user-name">{{ user.display_name }}</span>
+          </span>
+          <form method="post" action="{% url 'accounts:logout' %}" class="inline-form">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-ghost btn-sm">Đăng xuất</button>
+          </form>
+        {% else %}
+          <a href="{% url 'accounts:login' %}" class="nav-link">Đăng nhập</a>
+          <a href="{% url 'accounts:register' %}" class="btn btn-primary btn-sm">Tạo tài khoản</a>
+        {% endif %}
+      </nav>
+    </div>
+  </header>
+
+  {% if messages %}
+    <div class="container messages" aria-live="polite">
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags|default:'info' }}" role="status">
+          <span class="alert-text">{{ message }}</span>
+          <button type="button" class="alert-close" data-dismiss-alert aria-label="Đóng thông báo">&times;</button>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <main id="main-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div>
+        <a class="brand brand-footer" href="{% url 'events:home' %}">
+          <span class="brand-mark" aria-hidden="true">E</span>
+          <span class="brand-name">Event<span>Hub</span></span>
+        </a>
+        <p class="footer-note">Đồ án quản lý sự kiện · Django, PostgreSQL &amp; Docker.</p>
+      </div>
+      <div class="footer-links">
+        <a href="{% url 'events:home' %}">Sự kiện</a>
+        {% if user.is_authenticated %}
+          <a href="{% url 'events:my_registrations' %}">Vé của tôi</a>
+        {% else %}
+          <a href="{% url 'accounts:login' %}">Đăng nhập</a>
+        {% endif %}
+        {% if user.is_staff %}<a href="{% url 'dashboard:index' %}">Quản trị</a>{% endif %}
+      </div>
+      <p class="footer-copy">&copy; {% now "Y" %} EventHub. Giao diện tiếng Việt, tối ưu cho thiết bị di động.</p>
+    </div>
+  </footer>
+
+  <script src="{% static 'js/app.js' %}" defer></script>
+</body>
+</html>

@@ -1,0 +1,321 @@
+name: eventhub
+
+# Toàn bộ dịch vụ nội bộ dùng chung Docker network.
+# Chỉ Nginx được mở ra ngoài. pgAdmin/Prometheus/Grafana/Loki bind 127.0.0.1.
+services:
+  db:
+    image: postgres:17.11-alpine
+    container_name: event-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    security_opt:
+      - no-new-privileges:true
+    logging: &default-logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: eventhub-web:local
+    container_name: event-web
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DJANGO_DEBUG: "False"
+      DB_ENGINE: "postgres"
+      POSTGRES_HOST: "db"
+      POSTGRES_PORT: "5432"
+    volumes:
+      - static_data:/app/staticfiles
+      - media_data:/app/media
+    expose:
+      - "8000"
+    networks:
+      - backend
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)\"",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 45s
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    logging: *default-logging
+
+  nginx:
+    image: nginx:1.30.6-alpine
+    container_name: event-nginx
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - static_data:/var/www/static:ro
+      - media_data:/var/www/media:ro
+    networks:
+      - frontend
+      - backend
+    depends_on:
+      web:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+
+  pgadmin:
+    image: dpage/pgadmin4:9.18.0
+    container_name: event-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_CONFIG_SERVER_MODE: "True"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "True"
+      PGADMIN_CONFIG_UPGRADE_CHECK_ENABLED: "False"
+      # Không dùng chức năng gửi email đặt lại mật khẩu; tránh postfix/sudo
+      # không tương thích với no-new-privileges.
+      PGADMIN_DISABLE_POSTFIX: "True"
+      # Image pgAdmin 9.x chạy non-root (UID 5050). Với no-new-privileges,
+      # container không thể bind cổng <1024, nên dùng 8080 bên trong.
+      PGADMIN_LISTEN_PORT: "8080"
+    ports:
+      - "127.0.0.1:${PGADMIN_PORT:-5050}:8080"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - backend
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/venv/bin/python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/misc/ping', timeout=3)\"",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+
+  
+  prometheus:
+    image: prom/prometheus:v3.15.1
+    container_name: event-prometheus
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+    ports:
+      - "0.0.0.0:9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - backend
+      - monitoring
+      - frontend
+    depends_on:
+      web:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:9090/-/healthy || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+
+  grafana:
+    image: grafana/grafana:13.2.4
+    container_name: event-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+      GF_SERVER_ROOT_URL: "http://localhost:${GRAFANA_PORT:-3000}"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/event-overview.json
+    ports:
+      - "0.0.0.0:3000:3000"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    networks:
+      - monitoring
+      - frontend
+    depends_on:
+      prometheus:
+        condition: service_started
+      # Image Loki là distroless (không có shell/wget) nên không có
+      # healthcheck; dùng service_started và để Grafana tự retry datasource.
+      loki:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000/api/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+
+  loki:
+    image: grafana/loki:3.7.9
+    container_name: event-loki
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/loki-config.yml"]
+    ports:
+      - "127.0.0.1:${LOKI_PORT:-3100}:3100"
+    volumes:
+      - ./monitoring/loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki_data:/loki
+    networks:
+      - monitoring
+    # Loki dùng image distroless (không shell, không wget/curl) nên không thể
+    # chạy healthcheck kiểu CMD-SHELL. Xem /ready qua Grafana hoặc curl từ host.
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+
+  alloy:
+    image: grafana/alloy:v1.21.2
+    container_name: event-alloy
+    restart: unless-stopped
+    command:
+      - "run"
+      - "/etc/alloy/config.alloy"
+      - "--server.http.listen-addr=0.0.0.0:12345"
+      - "--storage.path=/var/lib/alloy/data"
+    volumes:
+      - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - alloy_data:/var/lib/alloy/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    networks:
+      - monitoring
+    depends_on:
+      loki:
+        condition: service_started
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+
+  node-exporter:
+    image: prom/node-exporter:v1.12.1
+    container_name: event-node-exporter
+    restart: unless-stopped
+    command:
+      - "--path.rootfs=/host"
+    pid: host
+    volumes:
+      - /:/host:ro
+    networks:
+      - monitoring
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.55.1
+    container_name: event-cadvisor
+    restart: unless-stopped
+    privileged: true
+    devices:
+      - /dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    networks:
+      - monitoring
+    logging: *default-logging
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.20.1
+    container_name: event-postgres-exporter
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_URI: "db:5432/${POSTGRES_DB}?sslmode=disable"
+      DATA_SOURCE_USER: ${POSTGRES_USER}
+      DATA_SOURCE_PASS: ${POSTGRES_PASSWORD}
+    networks:
+      - backend
+      - monitoring
+    depends_on:
+      db:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
+    internal: true
+  monitoring:
+    driver: bridge
+    internal: true
+
+volumes:
+  postgres_data:
+  static_data:
+  media_data:
+  pgadmin_data:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+  alloy_data:

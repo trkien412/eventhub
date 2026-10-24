@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% load humanize eventhub %}
+
+{% block title %}Bảng điều khiển{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="dashboard-shell">
+    {% include "dashboard/_nav.html" %}
+
+    <div class="dashboard-main">
+      <div class="dash-head">
+        <div>
+          <span class="eyebrow">Bảng điều khiển</span>
+          <h1>Xin chào, {{ user.display_name }}</h1>
+          <p>Số liệu được tính trực tiếp từ cơ sở dữ liệu của hệ thống.</p>
+        </div>
+        <a href="{% url 'dashboard:event_add' %}" class="btn btn-primary">+ Thêm sự kiện</a>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card">
+          <span class="stat-icon" aria-hidden="true">SK</span>
+          <div><strong>{{ stats.events_total|intcomma }}</strong><span>Tổng sự kiện</span></div>
+        </div>
+        <div class="stat-card">
+          <span class="stat-icon is-blue" aria-hidden="true">SM</span>
+          <div><strong>{{ stats.events_upcoming|intcomma }}</strong><span>Sự kiện sắp tới</span></div>
+        </div>
+        <div class="stat-card">
+          <span class="stat-icon is-green" aria-hidden="true">MỞ</span>
+          <div><strong>{{ stats.events_open|intcomma }}</strong><span>Đang mở đăng ký</span></div>
+        </div>
+        <div class="stat-card">
+          <span class="stat-icon is-amber" aria-hidden="true">ĐK</span>
+          <div><strong>{{ stats.registrations_total|intcomma }}</strong><span>Đăng ký đã xác nhận</span></div>
+        </div>
+        <div class="stat-card">
+          <span class="stat-icon is-green" aria-hidden="true">VÉ</span>
+          <div><strong>{{ stats.tickets_sold|intcomma }}</strong><span>Vé đã phát hành</span></div>
+        </div>
+        <div class="stat-card">
+          <span class="stat-icon" aria-hidden="true">ND</span>
+          <div><strong>{{ stats.users_total|intcomma }}</strong><span>Tài khoản hoạt động</span></div>
+        </div>
+        <div class="stat-card">
+          <span class="stat-icon is-amber" aria-hidden="true">₫</span>
+          <div><strong>{{ stats.revenue|vnd }} đ</strong><span>Doanh thu (đã xác nhận)</span></div>
+        </div>
+        <div class="stat-card">
+          <span class="stat-icon is-blue" aria-hidden="true">7N</span>
+          <div><strong>{{ chart_days|length }}</strong><span>Ngày theo dõi đăng ký</span></div>
+        </div>
+      </div>
+
+      <div class="dash-grid">
+        <div>
+          <section class="dash-card">
+            <div class="dash-card-head">
+              <h2>Đăng ký 7 ngày gần nhất</h2>
+              <span class="badge badge-primary">Thực tế</span>
+            </div>
+            <div class="chart-list">
+              {% for day in chart_days %}
+                <div class="chart-row">
+                  <span>{{ day.label }}</span>
+                  <progress class="progress" max="{{ max_daily|default:1 }}" value="{{ day.count }}">
+                    {{ day.count }} đăng ký
+                  </progress>
+                  <strong>{{ day.count }}</strong>
+                </div>
+              {% endfor %}
+            </div>
+            {% if not max_daily %}
+              <p class="form-help mt-2">Chưa có đăng ký nào trong 7 ngày gần đây.</p>
+            {% endif %}
+          </section>
+
+          <section class="dash-card">
+            <div class="dash-card-head">
+              <h2>Tỷ lệ lấp đầy sự kiện</h2>
+              <a href="{% url 'dashboard:event_list' %}">Quản lý sự kiện &rarr;</a>
+            </div>
+            {% for event in top_events %}
+              <div class="occupancy-row">
+                <div class="occupancy-top">
+                  <a href="{{ event.get_absolute_url }}">{{ event.name }}</a>
+                  <span>{{ event.tickets_sold }}/{{ event.capacity }} vé</span>
+                </div>
+                <progress class="progress" max="{{ event.capacity }}" value="{{ event.tickets_sold }}">
+                  {{ event.occupancy_percent }}%
+                </progress>
+              </div>
+            {% empty %}
+              <p class="muted small mb-0">Chưa có sự kiện đã công bố.</p>
+            {% endfor %}
+          </section>
+        </div>
+
+        <div>
+          <section class="dash-card">
+            <div class="dash-card-head">
+              <h2>Đăng ký gần đây</h2>
+              <a href="{% url 'dashboard:registration_list' %}">Tất cả &rarr;</a>
+            </div>
+            <ul class="mini-list">
+              {% for registration in recent_registrations %}
+                <li>
+                  <div class="mini-main">
+                    <strong>{{ registration.user.display_name }}</strong>
+                    <span>{{ registration.event.name|truncatechars:36 }}</span>
+                  </div>
+                  <div class="text-right">
+                    <span class="badge badge-success">{{ registration.quantity }} vé</span>
+                    <span class="cell-sub">{{ registration.created_at|date:"d/m H:i" }}</span>
+                  </div>
+                </li>
+              {% empty %}
+                <li><span class="muted">Chưa có đăng ký nào.</span></li>
+              {% endfor %}
+            </ul>
+          </section>
+
+          <section class="dash-card">
+            <div class="dash-card-head">
+              <h2>Kiểm tra nhanh</h2>
+            </div>
+            <ul class="mini-list">
+              <li>
+                <div class="mini-main"><strong>Sự kiện đang mở</strong><span>Đăng ký trong thời gian hợp lệ</span></div>
+                <span class="badge badge-success">{{ stats.events_open }}</span>
+              </li>
+              <li>
+                <div class="mini-main"><strong>Vé đã phát hành</strong><span>Tổng tickets_sold trên mọi sự kiện</span></div>
+                <span class="badge badge-primary">{{ stats.tickets_sold }}</span>
+              </li>
+              <li>
+                <div class="mini-main"><strong>Người dùng hoạt động</strong><span>Tài khoản chưa bị khóa</span></div>
+                <span class="badge badge-info">{{ stats.users_total }}</span>
+              </li>
+            </ul>
+            <p class="form-help mt-2">
+              Giám sát hạ tầng tại Grafana; log chi tiết tại Loki. Xem README để biết URL và truy vấn mẫu.
+            </p>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

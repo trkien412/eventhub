@@ -1,0 +1,121 @@
+# ============================================================================
+# MẪU HTTPS – chỉ dùng khi đã có domain và chứng chỉ hợp lệ.
+# Hướng dẫn:
+#   1. Đặt fullchain.pem và privkey.pem vào nginx/certs/ (đã gitignore).
+#   2. Thay eventhub.example.com bằng domain thật.
+#   3. Copy file này vào nginx/conf.d/https.conf, đổi tên
+#      nginx/conf.d/default.conf thành default.conf.disabled (để không tranh
+#      cổng 80), rồi thêm mount nginx/certs + port 443 vào docker-compose.yml
+#      (xem README). File 00-shared.conf vẫn được giữ nguyên.
+#   4. Bật DJANGO_SECURE_COOKIES=True, DJANGO_SSL_REDIRECT=True,
+#      DJANGO_HSTS_SECONDS=31536000 trong .env; cập nhật
+#      DJANGO_CSRF_TRUSTED_ORIGINS=https://eventhub.example.com
+# ============================================================================
+
+server {
+    listen 80;
+    server_name eventhub.example.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name eventhub.example.com;
+
+    ssl_certificate     /etc/nginx/certs/fullchain.pem;
+    ssl_certificate_key /etc/nginx/certs/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+
+    server_tokens off;
+    client_max_body_size 2m;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=()" always;
+    add_header Cross-Origin-Opener-Policy "same-origin" always;
+    add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; object-src 'none'" always;
+
+    gzip on;
+    gzip_comp_level 5;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+
+    # Header chung cho mọi location proxy sang Gunicorn.
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header X-Forwarded-Port 443;
+    proxy_set_header X-Request-ID $request_id;
+    proxy_set_header Connection "";
+    proxy_connect_timeout 5s;
+    proxy_send_timeout 60s;
+    proxy_read_timeout 60s;
+    proxy_redirect off;
+
+    location = /metrics {
+        return 404;
+    }
+
+    location = /healthz {
+        proxy_pass http://django_app;
+        access_log off;
+    }
+
+    location /static/ {
+        root /var/www;
+        try_files $uri =404;
+        expires 30d;
+        access_log off;
+    }
+
+    location /media/ {
+        root /var/www;
+        try_files $uri =404;
+        expires 1d;
+        access_log off;
+    }
+
+    # Django admin cần inline style/script; CSP nới riêng tại đây.
+    location /django-admin/ {
+        limit_req zone=auth burst=20 nodelay;
+
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=()" always;
+        add_header Cross-Origin-Opener-Policy "same-origin" always;
+        add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'" always;
+
+        proxy_pass http://django_app;
+    }
+
+    location = /accounts/login/ {
+        limit_req zone=auth burst=8 nodelay;
+        proxy_pass http://django_app;
+    }
+
+    location = /accounts/register/ {
+        limit_req zone=auth burst=8 nodelay;
+        proxy_pass http://django_app;
+    }
+
+    location / {
+        limit_req zone=general burst=30 nodelay;
+        proxy_pass http://django_app;
+    }
+
+    location ~ /\.(?!well-known) {
+        deny all;
+        access_log off;
+    }
+}

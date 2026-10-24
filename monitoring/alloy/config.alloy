@@ -1,0 +1,57 @@
+// Grafana Alloy — thu thập log stdout/stderr của các container EventHub
+// thông qua Docker socket, gắn nhãn container/stream rồi đẩy sang Loki.
+// Không đọc nội dung file .env hay dữ liệu nhạy cảm khác.
+
+logging {
+  level  = "info"
+  format = "logfmt"
+}
+
+discovery.docker "containers" {
+  host             = "unix:///var/run/docker.sock"
+  refresh_interval = "5s"
+}
+
+discovery.relabel "event_containers" {
+  targets = discovery.docker.containers.targets
+
+  // Chỉ thu log của các container thuộc dự án này.
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/event-[^/]+"
+    action        = "keep"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_log_stream"]
+    target_label  = "stream"
+  }
+
+  rule {
+    target_label = "job"
+    replacement  = "docker"
+  }
+}
+
+loki.source.docker "containers" {
+  host         = "unix:///var/run/docker.sock"
+  targets      = discovery.relabel.event_containers.output
+  labels       = { env = "production" }
+  relabel_rules = discovery.relabel.event_containers.rules
+  forward_to   = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+  external_labels = {
+    cluster = "eventhub",
+  }
+}

@@ -1,0 +1,1 @@
+<span class="badge{% if state == 'open' %} badge-success{% elif state == 'sold_out' or state == 'ended' or state == 'closed' %} badge-neutral{% elif state == 'cancelled' %} badge-danger{% else %} badge-warning{% endif %}">{{ label }}</span>

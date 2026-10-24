@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Không có quyền truy cập{% endblock %}
+{% block content %}
+<section class="container error-page">
+  <div class="error-code">403</div>
+  <h1>Bạn không có quyền truy cập trang này</h1>
+  <p class="muted">Khu vực quản trị chỉ dành cho tài khoản quản trị viên. Nếu bạn cho rằng đây là nhầm lẫn, hãy liên hệ ban tổ chức.</p>
+  <div class="hero-actions">
+    <a class="btn btn-primary" href="{% url 'events:home' %}">Về trang chủ</a>
+    {% if not user.is_authenticated %}<a class="btn btn-secondary" href="{% url 'accounts:login' %}">Đăng nhập</a>{% endif %}
+  </div>
+</section>
+{% endblock %}

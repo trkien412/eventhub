@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Quản lý sự kiện{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="dashboard-shell">
+    {% include "dashboard/_nav.html" %}
+
+    <div class="dashboard-main">
+      <div class="dash-head">
+        <div>
+          <span class="eyebrow">Quản trị</span>
+          <h1>Quản lý sự kiện</h1>
+          <p>Thêm, chỉnh sửa, theo dõi sức chứa và trạng thái từng sự kiện.</p>
+        </div>
+        <a href="{% url 'dashboard:event_add' %}" class="btn btn-primary">+ Thêm sự kiện</a>
+      </div>
+
+      <form method="get" class="filter-form mb-2" role="search">
+        <div class="form-group">
+          <label for="q">Tìm kiếm</label>
+          <input type="search" id="q" name="q" value="{{ q }}" class="form-control" placeholder="Tên hoặc địa điểm">
+        </div>
+        <div class="form-group">
+          <label for="status">Trạng thái</label>
+          <select id="status" name="status" class="form-control">
+            <option value="">Tất cả trạng thái</option>
+            {% for value, label in status_choices %}
+              <option value="{{ value }}"{% if selected_status == value %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn btn-secondary">Lọc</button>
+        <a href="{% url 'dashboard:event_list' %}" class="btn btn-ghost">Đặt lại</a>
+      </form>
+
+      {% if events %}
+        <div class="table-card">
+          <div class="table-scroll">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Sự kiện</th>
+                  <th>Thời gian</th>
+                  <th>Vé</th>
+                  <th>Đăng ký</th>
+                  <th>Trạng thái</th>
+                  <th class="text-right">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for event in events %}
+                  <tr>
+                    <td>
+                      <span class="cell-main">{{ event.name }}</span>
+                      <span class="cell-sub">{{ event.get_category_display }} · {{ event.location }}</span>
+                    </td>
+                    <td>
+                      {{ event.start_time|date:"d/m/Y H:i" }}
+                      <span class="cell-sub">{{ event.registration_state_label }}</span>
+                    </td>
+                    <td>
+                      <strong>{{ event.tickets_sold }}</strong> / {{ event.capacity }}
+                      <span class="cell-sub">Còn {{ event.remaining_tickets }} vé</span>
+                    </td>
+                    <td>{{ event.reg_count|intcomma }}</td>
+                    <td>
+                      {% if event.status == 'published' %}
+                        <span class="badge badge-success">Đang mở</span>
+                      {% elif event.status == 'draft' %}
+                        <span class="badge badge-warning">Bản nháp</span>
+                      {% else %}
+                        <span class="badge badge-danger">Đã hủy</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      <div class="cell-actions">
+                        <a class="btn btn-ghost btn-sm" href="{{ event.get_absolute_url }}">Xem</a>
+                        <a class="btn btn-secondary btn-sm" href="{% url 'dashboard:event_edit' event.pk %}">Sửa</a>
+                        <a class="btn btn-ghost btn-sm" href="{% url 'dashboard:event_delete' event.pk %}">Xóa</a>
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="table-foot">
+            <span>Trang {{ page_obj.number }} / {{ page_obj.paginator.num_pages }} · {{ page_obj.paginator.count }} sự kiện</span>
+          </div>
+        </div>
+        {% include "partials/pagination.html" %}
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-icon" aria-hidden="true">SK</div>
+          <h2>Chưa có sự kiện phù hợp</h2>
+          <p>Thử thay đổi bộ lọc hoặc tạo sự kiện mới để bắt đầu.</p>
+          <a href="{% url 'dashboard:event_add' %}" class="btn btn-primary">Thêm sự kiện</a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% load eventhub %}
+
+{% block title %}Vé của tôi{% endblock %}
+
+{% block content %}
+<section class="container page-head">
+  <div class="page-head-row">
+    <div>
+      <span class="eyebrow">Không gian của bạn</span>
+      <h1>Vé của tôi</h1>
+      <p>Tất cả đăng ký và mã vé điện tử của bạn được lưu tại đây.</p>
+    </div>
+    <div class="stat-chips" aria-label="Thống kê vé">
+      <span class="stat-chip"><strong>{{ stats.total|default:0 }}</strong> đăng ký</span>
+      <span class="stat-chip"><strong>{{ stats.confirmed|default:0 }}</strong> đã xác nhận</span>
+      <span class="stat-chip"><strong>{{ stats.cancelled|default:0 }}</strong> đã hủy</span>
+    </div>
+  </div>
+
+  {% if registrations %}
+    {% for registration in registrations %}
+      <article class="registration-card">
+        <header class="registration-head">
+          <div>
+            <h2><a href="{{ registration.event.get_absolute_url }}">{{ registration.event.name }}</a></h2>
+            <p class="registration-meta">
+              <span>{{ registration.event.start_time|date:"H:i · d/m/Y" }}</span>
+              <span>{{ registration.event.location }}</span>
+              <span>Đăng ký lúc {{ registration.created_at|date:"H:i d/m/Y" }}</span>
+            </p>
+          </div>
+          <div class="registration-side">
+            {% if registration.status == 'confirmed' %}
+              <span class="badge badge-success">Đã xác nhận</span>
+            {% else %}
+              <span class="badge badge-neutral">Đã hủy</span>
+            {% endif %}
+            <span class="price">{{ registration.total_price|vnd }} đ</span>
+          </div>
+        </header>
+
+        <div class="ticket-list">
+          {% for ticket in registration.tickets.all %}
+            <div class="ticket-stub">
+              <div class="ticket-stub-top">
+                <small>Mã vé</small>
+                {% if ticket.status == 'valid' %}
+                  <span class="badge badge-success">Hợp lệ</span>
+                {% elif ticket.status == 'used' %}
+                  <span class="badge badge-info">Đã sử dụng</span>
+                {% else %}
+                  <span class="badge badge-neutral">Đã hủy</span>
+                {% endif %}
+              </div>
+              <p class="ticket-code">{{ ticket.code_display }}</p>
+              <div class="ticket-stub-footer">
+                <span>
+                  {% if ticket.checked_in_at %}
+                    Check-in {{ ticket.checked_in_at|date:"H:i d/m/Y" }}
+                  {% else %}
+                    {{ ticket.event.get_category_display }} · {{ registration.quantity }} vé
+                  {% endif %}
+                </span>
+                <button type="button" class="copy-btn" data-copy="{{ ticket.code_display }}">Sao chép</button>
+              </div>
+            </div>
+          {% empty %}
+            <p class="muted">Chưa có vé nào được phát hành.</p>
+          {% endfor %}
+        </div>
+
+        <footer class="registration-foot">
+          <p>{{ registration.quantity }} vé · Đơn giá {{ registration.unit_price|vnd }} đ</p>
+          {% if registration.is_cancellable %}
+            <form method="post" action="{% url 'events:cancel_registration' registration.pk %}" data-confirm="Bạn chắc chắn muốn hủy đăng ký này? Tất cả vé sẽ bị hủy và không thể hoàn tác.">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-secondary btn-sm">Hủy đăng ký</button>
+            </form>
+          {% endif %}
+        </footer>
+      </article>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state">
+      <div class="empty-icon" aria-hidden="true">0</div>
+      <h2>Bạn chưa đăng ký sự kiện nào</h2>
+      <p>Khám phá các sự kiện đang mở đăng ký và nhận vé điện tử đầu tiên của bạn.</p>
+      <a href="{% url 'events:home' %}" class="btn btn-primary">Khám phá sự kiện</a>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

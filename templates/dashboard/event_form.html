@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="dashboard-shell">
+    {% include "dashboard/_nav.html" %}
+
+    <div class="dashboard-main">
+      <div class="dash-head">
+        <div>
+          <span class="eyebrow">Quản trị sự kiện</span>
+          <h1>{{ page_title }}</h1>
+          <p>Thời gian đăng ký phải kết thúc trước khi sự kiện bắt đầu.</p>
+        </div>
+        <a href="{% url 'dashboard:event_list' %}" class="btn btn-secondary">&larr; Danh sách</a>
+      </div>
+
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+          <div class="form-alert">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <section class="form-section">
+          <div class="form-section-head">
+            <h2>Thông tin chung</h2>
+            <p>Tên, mô tả và địa điểm hiển thị công khai trên website.</p>
+          </div>
+          <div class="form-grid">
+            {% include "dashboard/_field.html" with field=form.name extra_class="span-2" %}
+            {% include "dashboard/_field.html" with field=form.description extra_class="span-2" %}
+            {% include "dashboard/_field.html" with field=form.location extra_class="span-2" %}
+            {% include "dashboard/_field.html" with field=form.category %}
+            {% include "dashboard/_field.html" with field=form.status %}
+          </div>
+        </section>
+
+        <section class="form-section">
+          <div class="form-section-head">
+            <h2>Thời gian tổ chức &amp; đăng ký</h2>
+            <p>Hệ thống tự động kiểm tra thứ tự thời gian và chặn đăng ký ngoài khoảng cho phép.</p>
+          </div>
+          <div class="form-grid">
+            {% include "dashboard/_field.html" with field=form.start_time %}
+            {% include "dashboard/_field.html" with field=form.end_time %}
+            {% include "dashboard/_field.html" with field=form.registration_start %}
+            {% include "dashboard/_field.html" with field=form.registration_end %}
+          </div>
+        </section>
+
+        <section class="form-section">
+          <div class="form-section-head">
+            <h2>Vé &amp; sức chứa</h2>
+            <p>Sức chứa không được nhỏ hơn số vé đã bán. Giá 0 đồng là sự kiện miễn phí.</p>
+          </div>
+          <div class="form-grid">
+            {% include "dashboard/_field.html" with field=form.capacity %}
+            {% include "dashboard/_field.html" with field=form.price %}
+          </div>
+          {% if is_edit %}
+            <div class="notice">
+              <strong>Đã phát hành:</strong> {{ object.tickets_sold }} / {{ object.capacity }} vé.
+              Không thể giảm sức chứa xuống dưới số vé này.
+            </div>
+          {% endif %}
+        </section>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary btn-lg">
+            {% if is_edit %}Lưu thay đổi{% else %}Tạo sự kiện{% endif %}
+          </button>
+          <a href="{% url 'dashboard:event_list' %}" class="btn btn-secondary btn-lg">Hủy</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
